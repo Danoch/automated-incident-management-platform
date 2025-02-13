@@ -1,40 +1,54 @@
 stages:
   - test
   - package
-  - deploy
+  - deploy_staging
+  - deploy_production
 
 variables:
   AWS_REGION: "us-east-1"
   LAMBDA_FUNCTION_NAME: "incident-response-lambda"
   DEPLOY_PACKAGE: "lambda_function.zip"
+  STAGING_LAMBDA_ALIAS: "staging"
+  PRODUCTION_LAMBDA_ALIAS: "production"
 
 before_script:
-  - apt-get update && apt-get install -y zip unzip
-  - pip install --upgrade awscli boto3  # Install AWS CLI & Boto3
+  - pip install --upgrade awscli
+  - pip install boto3  # Optional: If running tests
 
 test:
   stage: test
-  image: python:3.9  # ✅ Use a Python image
   script:
     - echo "Running tests..."
-    - if [ -d "tests" ]; then pip install pytest && pytest tests/; else echo "No tests found, skipping."; fi
+    - pytest tests/  # Replace with your actual test command
 
 package:
   stage: package
-  image: python:3.9  # ✅ Use a Python image
   script:
     - cd lambda_package
     - zip -r ../$DEPLOY_PACKAGE lambda_function.py
     - cd ..
+  artifacts:
+    paths:
+      - $DEPLOY_PACKAGE  # Store package for later use
 
-deploy:
-  stage: deploy
-  image: python:3.9  # ✅ Ensure we have AWS CLI installed
+deploy_staging:
+  stage: deploy_staging
+  environment:
+    name: staging
+    url: https://staging.example.com  # Update with your staging URL
   script:
-    - export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-    - export AWS_DEFAULT_REGION=${AWS_REGION}
     - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$DEPLOY_PACKAGE --region $AWS_REGION
+    - aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS --function-version "\$LATEST"
+  only:
+    - main  # Auto deploy to staging on every push to main
+
+deploy_production:
+  stage: deploy_production
+  environment:
+    name: production
+    url: https://production.example.com  # Update with your production URL
+  script:
+    - aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS --function-version "\$LATEST"
   only:
     - main
-
+  when: manual  # Requires manual approval before deploying to production
