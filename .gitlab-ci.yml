@@ -11,12 +11,11 @@ variables:
   STAGING_LAMBDA_ALIAS: "staging"
   PRODUCTION_LAMBDA_ALIAS: "production"
 
-# ✅ Use Python image globally
 image: python:3.9
 
 before_script:
   - pip install --upgrade pip awscli
-  - pip install boto3  # Optional: If running tests
+  - pip install boto3
 
 test:
   stage: test
@@ -28,32 +27,47 @@ test:
 package:
   stage: package
   script:
-    - apt-get update && apt-get install -y zip  # ✅ Install `zip` before running packaging
+    - apt-get update && apt-get install -y zip
     - cd lambda_package
     - zip -r ../$DEPLOY_PACKAGE lambda_function.py
     - cd ..
   artifacts:
     paths:
-      - $DEPLOY_PACKAGE  # Store package for later use
+      - $DEPLOY_PACKAGE
 
 deploy_staging:
   stage: deploy_staging
   environment:
     name: staging
-    url: https://staging.example.com  # Update with your staging URL
+    url: https://staging.example.com
   script:
     - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$DEPLOY_PACKAGE --region $AWS_REGION
-    - aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS --function-version "\$LATEST"
+    # ✅ Check if alias exists, create it if it doesn't
+    - |
+      if aws lambda get-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS 2>/dev/null; then
+        echo "✅ Alias '$STAGING_LAMBDA_ALIAS' exists. Updating..."
+        aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS --function-version "\$LATEST"
+      else
+        echo "🚀 Alias '$STAGING_LAMBDA_ALIAS' does not exist. Creating..."
+        aws lambda create-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS --function-version "\$LATEST"
+      fi
   only:
-    - main  # Auto deploy to staging on every push to main
+    - main
 
 deploy_production:
   stage: deploy_production
   environment:
     name: production
-    url: https://production.example.com  # Update with your production URL
+    url: https://production.example.com
   script:
-    - aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS --function-version "\$LATEST"
+    - |
+      if aws lambda get-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS 2>/dev/null; then
+        echo "✅ Alias '$PRODUCTION_LAMBDA_ALIAS' exists. Updating..."
+        aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS --function-version "\$LATEST"
+      else
+        echo "🚀 Alias '$PRODUCTION_LAMBDA_ALIAS' does not exist. Creating..."
+        aws lambda create-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS --function-version "\$LATEST"
+      fi
   only:
     - main
   when: manual  # Requires manual approval before deploying to production
