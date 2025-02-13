@@ -17,7 +17,10 @@ before_script:
 
 test:
   stage: test
+  image: python:3.9  # ✅ Use Python-based image that includes pip
   script:
+    - pip install --upgrade awscli
+    - pip install boto3 pytest  # Optional: If running tests
     - echo "Running tests..."
     - pytest tests/  # Replace with your actual test command
 
