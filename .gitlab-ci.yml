@@ -9,17 +9,19 @@ variables:
   DEPLOY_PACKAGE: "lambda_function.zip"
 
 before_script:
-  - pip install --upgrade awscli
-  - pip install boto3  # Optional: If running tests
+  - apt-get update && apt-get install -y zip unzip
+  - pip install --upgrade awscli boto3  # Install AWS CLI & Boto3
 
 test:
   stage: test
+  image: python:3.9  # ✅ Use a Python image
   script:
     - echo "Running tests..."
-    - if [ -d "tests" ]; then pytest tests/; else echo "No tests found, skipping."; fi  # Avoids failure
+    - if [ -d "tests" ]; then pip install pytest && pytest tests/; else echo "No tests found, skipping."; fi
 
 package:
   stage: package
+  image: python:3.9  # ✅ Use a Python image
   script:
     - cd lambda_package
     - zip -r ../$DEPLOY_PACKAGE lambda_function.py
@@ -27,7 +29,8 @@ package:
 
 deploy:
   stage: deploy
+  image: python:3.9  # ✅ Use a Python image
   script:
     - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$DEPLOY_PACKAGE --region $AWS_REGION
   only:
-    - main  # Deploy only when changes are pushed to the main branch
+    - main
