@@ -11,17 +11,16 @@ variables:
   STAGING_LAMBDA_ALIAS: "staging"
   PRODUCTION_LAMBDA_ALIAS: "production"
 
-# ✅ Use Python image globally to avoid Ruby issues
-image: python:3.9  # This ensures `pip` is available in all stages
+# ✅ Use Python image globally
+image: python:3.9
 
 before_script:
-  - pip install --upgrade awscli
+  - pip install --upgrade pip awscli
   - pip install boto3  # Optional: If running tests
 
 test:
   stage: test
   script:
-    - pip install --upgrade awscli
     - pip install boto3 pytest
     - echo "Running tests..."
     - if [ -d "tests" ]; then pytest tests/; else echo "No tests found, skipping."; fi
@@ -29,6 +28,7 @@ test:
 package:
   stage: package
   script:
+    - apt-get update && apt-get install -y zip  # ✅ Install `zip` before running packaging
     - cd lambda_package
     - zip -r ../$DEPLOY_PACKAGE lambda_function.py
     - cd ..
