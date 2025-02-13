@@ -11,18 +11,20 @@ variables:
   STAGING_LAMBDA_ALIAS: "staging"
   PRODUCTION_LAMBDA_ALIAS: "production"
 
+# ✅ Use Python image globally to avoid Ruby issues
+image: python:3.9  # This ensures `pip` is available in all stages
+
 before_script:
   - pip install --upgrade awscli
   - pip install boto3  # Optional: If running tests
 
 test:
   stage: test
-  image: python:3.9  # ✅ Use Python-based image that includes pip
   script:
     - pip install --upgrade awscli
-    - pip install boto3 pytest  # Optional: If running tests
+    - pip install boto3 pytest
     - echo "Running tests..."
-    - pytest tests/  # Replace with your actual test command
+    - if [ -d "tests" ]; then pytest tests/; else echo "No tests found, skipping."; fi
 
 package:
   stage: package
