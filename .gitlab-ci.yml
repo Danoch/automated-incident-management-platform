@@ -29,8 +29,12 @@ package:
 
 deploy:
   stage: deploy
-  image: python:3.9  # ✅ Use a Python image
+  image: python:3.9  # ✅ Ensure we have AWS CLI installed
   script:
+    - export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    - export AWS_DEFAULT_REGION=${AWS_REGION}
     - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$DEPLOY_PACKAGE --region $AWS_REGION
   only:
     - main
+
