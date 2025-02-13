@@ -28,7 +28,7 @@ resource "aws_dynamodb_table" "terraform_locks" {
 resource "aws_instance" "incident_test_instance" {
   ami           = "ami-04681163a08179f28"  # Amazon Linux 2 AMI (x86_64)
   instance_type = "t2.micro"
-  key_name      = "DanochKeyPair"  # Use the key pair you just created
+  key_name      = "NewDanochKeyPair"  # Use the key pair you just created | new keypair updated
   security_groups = ["default"]
 
   tags = {
@@ -61,7 +61,7 @@ resource "aws_cloudwatch_metric_alarm" "high_cpu" {
   alarm_description   = "Triggers when CPU usage exceeds 80% for 5 minutes"
 
   dimensions = {
-    InstanceId = "<i-0d691d7e403d8249b>"
+    InstanceId = "<i-0837de3f357c2a0c4>"
   }
 
   actions_enabled = true
