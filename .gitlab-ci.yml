@@ -1,0 +1,33 @@
+stages:
+  - test
+  - package
+  - deploy
+
+variables:
+  AWS_REGION: "us-east-1"
+  LAMBDA_FUNCTION_NAME: "incident-response-lambda"
+  DEPLOY_PACKAGE: "lambda_function.zip"
+
+before_script:
+  - pip install --upgrade awscli
+  - pip install boto3  # Optional: If running tests
+
+test:
+  stage: test
+  script:
+    - echo "Running tests..."
+    - pytest tests/  # Replace with your actual test command
+
+package:
+  stage: package
+  script:
+    - cd lambda_package
+    - zip -r ../$DEPLOY_PACKAGE lambda_function.py
+    - cd ..
+
+deploy:
+  stage: deploy
+  script:
+    - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$DEPLOY_PACKAGE --region $AWS_REGION
+  only:
+    - main  # Deploy only when changes are pushed to the main branch
