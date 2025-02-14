@@ -3,6 +3,7 @@ stages:
   - package
   - deploy_staging
   - deploy_production
+  - deploy_node_app  # ✅ New stage for EC2 Node.js app deployment
 
 variables:
   AWS_REGION: "us-east-1"
@@ -10,6 +11,10 @@ variables:
   DEPLOY_PACKAGE: "lambda_function.zip"
   STAGING_LAMBDA_ALIAS: "staging"
   PRODUCTION_LAMBDA_ALIAS: "production"
+  EC2_HOST: "18.206.160.82"  # ✅ our EC2 Public IP
+  EC2_USER: "ec2-user"
+  SSH_PRIVATE_KEY: $EC2_SSH_KEY  # ✅ GitLab CI/CD variable (Add the SSH private key here)
+  NODE_APP_DIR: "/home/ec2-user/node-app"
 
 image: python:3.9
 
@@ -42,7 +47,6 @@ deploy_staging:
     url: https://staging.example.com
   script:
     - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$DEPLOY_PACKAGE --region $AWS_REGION
-    # ✅ Check if alias exists, create it if it doesn't
     - |
       if aws lambda get-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS 2>/dev/null; then
         echo "✅ Alias '$STAGING_LAMBDA_ALIAS' exists. Updating..."
@@ -71,3 +75,27 @@ deploy_production:
   only:
     - main
   when: manual  # Requires manual approval before deploying to production
+
+deploy_node_app:
+  stage: deploy_node_app
+  image: alpine  # ✅ Lightweight image for SSH
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan $EC2_HOST >> ~/.ssh/known_hosts
+  script:
+    - echo "🚀 Deploying Node.js app to EC2..."
+    - ssh $EC2_USER@$EC2_HOST "mkdir -p $NODE_APP_DIR"
+    - rsync -avz --delete . $EC2_USER@$EC2_HOST:$NODE_APP_DIR/
+    - ssh $EC2_USER@$EC2_HOST << 'EOF'
+        cd $NODE_APP_DIR
+        npm install
+        docker build -t node-app .
+        docker stop node-app || true
+        docker rm node-app || true
+        docker run -d -p 3000:3000 --name node-app node-app
+      EOF
+  only:
+    - main
