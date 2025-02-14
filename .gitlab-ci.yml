@@ -91,7 +91,7 @@ deploy_node_app:
     - sleep 10  # Wait for Docker to initialize
   script:
     - echo "🚀 Building & Pushing Docker Image to ECR..."
-    - docker build -t node-app .
+    - cd node-app && docker build -t node-app .
     - docker tag node-app:latest "$AWS_ECR_REPO":latest
     - docker push "$AWS_ECR_REPO":latest
     - echo "✅ Image pushed to ECR!"
