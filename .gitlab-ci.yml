@@ -88,13 +88,14 @@ deploy_node_app:
   script:
     - echo "🚀 Deploying Node.js app to EC2..."
     - ssh $EC2_USER@$EC2_HOST "mkdir -p $NODE_APP_DIR"
-    - rsync -avz --delete --exclude '.git' --exclude 'node_modules' --exclude '.gitlab-ci.yml' . $EC2_USER@$EC2_HOST:$NODE_APP_DIR/
+    - rsync -avz --delete . $EC2_USER@$EC2_HOST:$NODE_APP_DIR/
     - ssh $EC2_USER@$EC2_HOST << 'EOF'
         cd $NODE_APP_DIR
         npm install
-        echo "📦 Building & Running Docker Container..."
-        docker-compose down  # Stop old containers safely
-        docker-compose up -d --build  # Build and restart containers
+        docker build -t node-app .
+        docker stop node-app || true
+        docker rm node-app || true
+        docker run -d -p 3000:3000 --name node-app node-app
       EOF
   only:
     - main
