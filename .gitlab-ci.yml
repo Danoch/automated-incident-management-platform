@@ -85,23 +85,29 @@ deploy_node_app:
     DOCKER_HOST: "tcp://docker:2375"
     DOCKER_TLS_CERTDIR: ""
   before_script:
-    - apk add --no-cache python3 py3-pip aws-cli
-    - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
-    - dockerd-entrypoint.sh &
-    - sleep 10  # Wait for Docker to initialize
-  script:
-    - echo "🚀 Building & Pushing Docker Image to ECR..."
-    - cd node-app && docker build -t node-app .
-    - docker tag node-app:latest "$AWS_ECR_REPO":latest
-    - docker push "$AWS_ECR_REPO":latest
-    - echo "✅ Image pushed to ECR!"
-    
-    - echo "🚀 Deploying on EC2..."
-    - apk add --no-cache openssh-client
+    - apk add --no-cache python3 py3-pip aws-cli openssh-client
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan "$EC2_HOST" >> ~/.ssh/known_hosts
+    - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
+  script:
+    - echo "🚀 Deploying Node.js App to EC2..."
+    
+    # ✅ Check current working directory
+    - echo "📁 Current directory: $(pwd)"
+    - echo "📂 Listing files in $(pwd):"
+    - ls -la
+    
+    # ✅ Verify if 'node-app' directory exists
+    - if [ -d "node-app" ]; then cd node-app; else echo "❌ ERROR: node-app directory not found!"; exit 1; fi
+
+    - docker build -t node-app .
+    - docker tag node-app:latest "$AWS_ECR_REPO":latest
+    - docker push "$AWS_ECR_REPO":latest
+    - echo "✅ Image pushed to ECR!"
+
+    - echo "🚀 Deploying on EC2..."
     - ssh "$EC2_USER@$EC2_HOST" << 'EOF'
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
         docker pull "$AWS_ECR_REPO":latest
@@ -111,4 +117,3 @@ deploy_node_app:
       EOF
   only:
     - main
-
