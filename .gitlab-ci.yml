@@ -94,7 +94,7 @@ deploy_node_app:
         npm install
         echo "📦 Building & Running Docker Container..."
         docker-compose down  # Stop old containers safely
-        docker-compose up -d --build  # Build and restart containers y ya
+        docker-compose up -d --build  # Build and restart containers
       EOF
   only:
     - main
