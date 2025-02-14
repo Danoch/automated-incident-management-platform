@@ -7,7 +7,7 @@ stages:
 
 variables:
   AWS_REGION: "us-east-1"
-  AWS_ECR_REPO: "928568224370.dkr.ecr.us-east-1.amazonaws.com/node-app"  # ✅ our ECR repo URI
+  AWS_ECR_REPO: "928568224370.dkr.ecr.us-east-1.amazonaws.com/node-app"
   EC2_HOST: "18.206.160.82"
   EC2_USER: "ec2-user"
   SSH_PRIVATE_KEY: $EC2_SSH_KEY  # ✅ Add SSH key in GitLab CI/CD variables
@@ -52,8 +52,8 @@ deploy_staging:
 
     - |
       if [ -z "$LAMBDA_FUNCTION_NAME" ]; then 
-        echo "❌ ERROR: LAMBDA_FUNCTION_NAME is empty!"; 
-        exit 1; 
+        echo "❌ ERROR: LAMBDA_FUNCTION_NAME is empty!";
+        exit 1;
       fi
 
     - echo "🚀 Deploying to AWS Lambda..."
@@ -63,17 +63,15 @@ deploy_staging:
   only:
     - main
 
-
-
 deploy_production:
   stage: deploy_production
   when: manual
   script:
     - |
-      if aws lambda get-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS 2>/dev/null; then
-        aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS --function-version "\$LATEST"
+      if aws lambda get-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" 2>/dev/null; then
+        aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "\$LATEST"
       else
-        aws lambda create-alias --function-name $LAMBDA_FUNCTION_NAME --name $PRODUCTION_LAMBDA_ALIAS --function-version "\$LATEST"
+        aws lambda create-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "\$LATEST"
       fi
   only:
     - main
@@ -86,12 +84,12 @@ deploy_node_app:
     - amazon-linux-extras enable docker
     - yum install -y docker aws-cli
     - service docker start
-    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ECR_REPO
+    - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
   script:
     - echo "🚀 Building & Pushing Docker Image to ECR..."
     - docker build -t node-app .
-    - docker tag node-app:latest $AWS_ECR_REPO:latest
-    - docker push $AWS_ECR_REPO:latest
+    - docker tag node-app:latest "$AWS_ECR_REPO":latest
+    - docker push "$AWS_ECR_REPO":latest
     - echo "✅ Image pushed to ECR!"
     
     - echo "🚀 Deploying on EC2..."
@@ -99,13 +97,13 @@ deploy_node_app:
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
-    - ssh-keyscan $EC2_HOST >> ~/.ssh/known_hosts
-    - ssh $EC2_USER@$EC2_HOST << 'EOF'
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ECR_REPO
-        docker pull $AWS_ECR_REPO:latest
+    - ssh-keyscan "$EC2_HOST" >> ~/.ssh/known_hosts
+    - ssh "$EC2_USER@$EC2_HOST" << 'EOF'
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
+        docker pull "$AWS_ECR_REPO":latest
         docker stop node-app-container || true
         docker rm node-app-container || true
-        docker run -d -p 3000:3000 --name node-app-container $AWS_ECR_REPO:latest
+        docker run -d -p 3000:3000 --name node-app-container "$AWS_ECR_REPO":latest
       EOF
   only:
     - main
