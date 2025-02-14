@@ -78,13 +78,14 @@ deploy_production:
 
 deploy_node_app:
   stage: deploy_node_app
-  image: amazonlinux:2  # ✅ Amazon Linux for AWS CLI
+  image: docker:latest  # ✅ Use official Docker image
+  services:
+    - docker:dind  # ✅ Runs Docker-in-Docker
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
   before_script:
-    - yum install -y amazon-linux-extras
-    - amazon-linux-extras enable docker
-    - yum install -y docker aws-cli
-    - dockerd &  # FIX: Start Docker in the background
-    - sleep 5  # Wait for Docker to initialize
+    - apk add --no-cache python3 py3-pip aws-cli
     - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
   script:
     - echo "🚀 Building & Pushing Docker Image to ECR..."
@@ -108,3 +109,4 @@ deploy_node_app:
       EOF
   only:
     - main
+
