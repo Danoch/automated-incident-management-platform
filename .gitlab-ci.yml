@@ -83,7 +83,7 @@ deploy_node_app:
     - yum install -y amazon-linux-extras
     - amazon-linux-extras enable docker
     - yum install -y docker aws-cli
-    - service docker start
+    - systemctl start docker
     - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
   script:
     - echo "🚀 Building & Pushing Docker Image to ECR..."
