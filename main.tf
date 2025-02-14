@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"  # Change if needed
+  region = "us-east-1"  # The current region, dont change it
 }
 
 terraform {
@@ -8,9 +8,9 @@ terraform {
   backend "s3" {
     bucket         = "danoch-terraform-state"
     key            = "incident-management/terraform.tfstate"
-    region         = "us-east-1"  # Change if needed
+    region         = "us-east-1"
     encrypt        = true
-    dynamodb_table = "danoch-terraform-locks"  # Optional for state locking
+    dynamodb_table = "danoch-terraform-locks"  # Optional for state locking, check notes 
   }
 }
 
@@ -37,16 +37,16 @@ resource "aws_instance" "incident_test_instance" {
 }
 
 
-# Create an SNS topic for incident notifications
+# Creating an SNS topic for incident notifications
 resource "aws_sns_topic" "incident_notifications" {
   name = "incident-notifications"
 }
 
-# Subscribe an email to receive notifications (Replace with your email)
+# Subscribe an email to receive notifications
 resource "aws_sns_topic_subscription" "email_subscription" {
   topic_arn = aws_sns_topic.incident_notifications.arn
   protocol  = "email"
-  endpoint  = "daniel.martinez.vfi@gmail.com"  # Change this to your real email
+  endpoint  = "daniel.martinez.vfi@gmail.com" 
 }
 
 resource "aws_cloudwatch_metric_alarm" "high_cpu" {
@@ -57,7 +57,7 @@ resource "aws_cloudwatch_metric_alarm" "high_cpu" {
   namespace           = "AWS/EC2"
   period              = 300
   statistic           = "Average"
-  threshold           = 80  # Adjust as needed
+  threshold           = 80  # it could be less than 80%
   alarm_description   = "Triggers when CPU usage exceeds 80% for 5 minutes"
 
   dimensions = {
@@ -76,7 +76,7 @@ resource "aws_lambda_function" "incident_handler" {
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
 
-  filename         = "lambda_function.zip"  # We will create this file
+  filename         = "lambda_function.zip"  # We will create this file for lambda actions
   source_code_hash = filebase64sha256("lambda_function.zip")
 
   environment {
