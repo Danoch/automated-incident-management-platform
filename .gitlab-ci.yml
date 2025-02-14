@@ -39,14 +39,22 @@ package:
 
 deploy_staging:
   stage: deploy_staging
+  environment:
+    name: staging
+    url: https://staging.example.com
   script:
-    - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$DEPLOY_PACKAGE --region $AWS_REGION
-    - |
-      if aws lambda get-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS 2>/dev/null; then
-        aws lambda update-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS --function-version "\$LATEST"
-      else
-        aws lambda create-alias --function-name $LAMBDA_FUNCTION_NAME --name $STAGING_LAMBDA_ALIAS --function-version "\$LATEST"
-      fi
+    - echo "🔍 Checking variables..."
+    - echo "LAMBDA_FUNCTION_NAME is: '$LAMBDA_FUNCTION_NAME'"
+    - echo "DEPLOY_PACKAGE is: '$DEPLOY_PACKAGE'"
+    - echo "AWS_REGION is: '$AWS_REGION'"
+    
+    - if [ -z "$LAMBDA_FUNCTION_NAME" ]; then echo "❌ ERROR: LAMBDA_FUNCTION_NAME is empty!"; exit 1; fi
+    
+    - echo "🚀 Deploying to AWS Lambda..."
+    - aws lambda update-function-code --function-name "$LAMBDA_FUNCTION_NAME" --zip-file fileb://"$DEPLOY_PACKAGE" --region "$AWS_REGION"
+    
+    - echo "✅ Deployment finished!"
+
   only:
     - main
 
