@@ -12,6 +12,8 @@ variables:
   EC2_USER: "ec2-user"
   SSH_PRIVATE_KEY: $EC2_SSH_KEY  # ✅ Add SSH key in GitLab CI/CD variables
   NODE_APP_DIR: "/home/ec2-user/node-app"
+  LAMBDA_FUNCTION_NAME: "incident-response-lambda"
+  DEPLOY_PACKAGE: "lambda_function.zip"
 
 image: python:3.9
 
@@ -54,9 +56,9 @@ deploy_staging:
     - aws lambda update-function-code --function-name "$LAMBDA_FUNCTION_NAME" --zip-file fileb://"$DEPLOY_PACKAGE" --region "$AWS_REGION"
     
     - echo "✅ Deployment finished!"
-
   only:
     - main
+
 
 deploy_production:
   stage: deploy_production
