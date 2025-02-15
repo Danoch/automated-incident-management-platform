@@ -7,6 +7,9 @@ WORKDIR /app
 # Copy package.json and package-lock.json first
 COPY node-app/package*.json ./
 
+# **Debugging: Check if package.json exists before npm install**
+RUN ls -la /app
+
 # Install dependencies
 RUN npm install
 

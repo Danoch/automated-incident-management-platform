@@ -90,6 +90,8 @@ deploy_node_app:
   script:
     - echo "📂 Listing files before building the Docker image:"
     - ls -la
+    - echo "📂 Checking inside node-app directory:"
+    - ls -la node-app/
     - echo "🚀 Building Docker Image..."
     - docker build -t node-app .  # ✅ No need to switch directories
     - docker tag node-app:latest "$AWS_ECR_REPO":latest
