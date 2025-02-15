@@ -90,7 +90,7 @@ deploy_node_app:
     
     # ✅ Ensure we're in the correct directory
     - ls -la  # Check current files
-    - cd node-app || { echo "❌ ERROR: node-app directory not found!"; exit 1; }
+    - cd node-app || { echo "❌ ERROR node-app directory not found!"; exit 1; }
     
     - docker build -t node-app .
     - docker tag node-app:latest "$AWS_ECR_REPO":latest
