@@ -78,22 +78,18 @@ deploy_production:
 
 deploy_node_app:
   stage: deploy_node_app
-  image: amazonlinux:2  # ✅ Amazon Linux for AWS CLI
+  image: docker:24.0  # ✅ Use Docker-in-Docker official image
+  services:
+    - docker:dind  # ✅ Enables Docker-in-Docker (DinD)
+  variables:
+    DOCKER_TLS_CERTDIR: ""  # ✅ Required to disable TLS issues in Docker-in-Docker
   before_script:
-    - yum install -y amazon-linux-extras
-    - amazon-linux-extras enable docker
-    - yum install -y docker aws-cli
-    - dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 &
-    - sleep 5  # Give it time to start
-    - docker ps  # Verify Docker is running
+    - apk add --no-cache bash openssh-client aws-cli
+    - docker info  # ✅ Debugging to ensure Docker is running
     - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
   script:
     - echo "🚀 Building & Pushing Docker Image to ECR..."
-    
-    # ✅ Ensure we're in the correct directory
-    - ls -la  # Check current files
     - cd node-app || { echo "❌ ERROR node-app directory not found!"; exit 1; }
-    
     - docker build -t node-app .
     - docker tag node-app:latest "$AWS_ECR_REPO":latest
     - docker push "$AWS_ECR_REPO":latest
