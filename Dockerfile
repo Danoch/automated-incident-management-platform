@@ -5,13 +5,13 @@ FROM node:18
 WORKDIR /app
 
 # Copy package.json and package-lock.json first
-COPY package*.json ./
+COPY node-app/package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the entire application (including index.js)
-COPY . .
+# Copy the entire application
+COPY node-app/ .  
 
 # Expose the port the app runs on
 EXPOSE 3000
