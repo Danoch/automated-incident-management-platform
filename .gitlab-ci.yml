@@ -88,9 +88,8 @@ deploy_node_app:
     - docker info  # ✅ Debugging to ensure Docker is running
     - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
   script:
-    - echo "🚀 Building & Pushing Docker Image to ECR..."
-    - cd node-app || { echo "❌ ERROR node-app directory not found!"; exit 1; }
-    - docker build -t node-app .
+    - echo "🚀 Building Docker Image..."
+    - docker build -t node-app .  # ✅ No need to switch directories
     - docker tag node-app:latest "$AWS_ECR_REPO":latest
     - docker push "$AWS_ECR_REPO":latest
     - echo "✅ Image pushed to ECR!"
@@ -110,3 +109,4 @@ deploy_node_app:
       EOF
   only:
     - main
+
