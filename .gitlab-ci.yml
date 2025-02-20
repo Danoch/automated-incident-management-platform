@@ -117,12 +117,19 @@ deploy_production:
       set -e  # 🚨 Detiene si hay errores
       LATEST_VERSION=$(aws lambda publish-version --function-name "$LAMBDA_FUNCTION_NAME" --query 'Version' --output text)
       CURRENT_VERSION=$(aws lambda get-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --query 'FunctionVersion' --output text)
-      
+      ROUTING_CONFIG=$(aws lambda get-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --query 'RoutingConfig' --output text || echo "NONE")
+
       echo "Latest Lambda Version: $LATEST_VERSION"
       echo "Current Production Version: $CURRENT_VERSION"
+      echo "Current Routing Config: $ROUTING_CONFIG"
 
       if [ "$LATEST_VERSION" == "$CURRENT_VERSION" ]; then
         echo "⚠ No deployment needed: Lambda function is already at version $LATEST_VERSION"
+        exit 0
+      fi
+
+      if [[ "$ROUTING_CONFIG" == *"$LATEST_VERSION"* ]]; then
+        echo "⚠ No update needed: Version $LATEST_VERSION is already in routing config"
         exit 0
       fi
 
@@ -150,6 +157,7 @@ deploy_production:
       fi
   only:
     - main
+
 
 
 deploy_node_app:
