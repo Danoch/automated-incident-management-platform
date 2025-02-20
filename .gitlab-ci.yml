@@ -91,13 +91,20 @@ deploy_canary_ec2:
   script:
     - echo "🚀 Launching Canary EC2 instance..."
     - |
-      set -e  # 🚨 Evita que siga si hay errores
-      INSTANCE_ID=$(aws ec2 run-instances --image-id ami-032ae1bccc5be78ca --count 1 --instance-type t2.micro --key-name NewDanochKeyPair --security-groups sg-0258f6f5d352c146a --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' --query 'Instances[0].InstanceId' --output text)
+      set -e  # 🚨 Detiene si hay errores
+      INSTANCE_ID=$(aws ec2 run-instances --image-id ami-032ae1bccc5be78ca \
+        --count 1 \
+        --instance-type t2.micro \
+        --key-name NewDanochKeyPair \
+        --security-group-ids sg-0258f6f5d352c146a \
+        --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' \
+        --query 'Instances[0].InstanceId' --output text)
+
       echo "✅ Canary Instance Deployed! Instance ID: $INSTANCE_ID"
       echo "INSTANCE_ID=$INSTANCE_ID" >> deploy.env
   artifacts:
     reports:
-      dotenv: deploy.env  # save instance ID
+      dotenv: deploy.env  # save the Instance ID
   only:
     - main
 
@@ -107,11 +114,18 @@ deploy_production:
   script:
     - echo "🚀 Deploying to Production..."
     - |
-      set -e  # 🚨 Detener si hay errores
+      set -e  # 🚨 Detiene si hay errores
       LATEST_VERSION=$(aws lambda publish-version --function-name "$LAMBDA_FUNCTION_NAME" --query 'Version' --output text)
+      CURRENT_VERSION=$(aws lambda get-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --query 'FunctionVersion' --output text)
       
       echo "Latest Lambda Version: $LATEST_VERSION"
-      
+      echo "Current Production Version: $CURRENT_VERSION"
+
+      if [ "$LATEST_VERSION" == "$CURRENT_VERSION" ]; then
+        echo "⚠ No deployment needed: Lambda function is already at version $LATEST_VERSION"
+        exit 0
+      fi
+
       if aws lambda get-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" 2>/dev/null; then
         echo "Updating alias to new version..."
         aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "$LATEST_VERSION"
@@ -119,7 +133,7 @@ deploy_production:
         echo "Creating alias for first deployment..."
         aws lambda create-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "$LATEST_VERSION"
       fi
-      
+
       echo "✅ Production deployment complete!"
 
   after_script:
@@ -136,6 +150,7 @@ deploy_production:
       fi
   only:
     - main
+
 
 deploy_node_app:
   stage: deploy_node_app
