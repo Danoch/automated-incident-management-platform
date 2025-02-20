@@ -66,20 +66,24 @@ deploy_staging:
   only:
     - main
 
-
 deploy_canary:
   stage: deploy_canary
   when: manual
   script:
     - echo "🚀 Deploying Canary Release..."
     - |
-      set -e  # 🚨 Detiene la ejecución si hay errores
+      set -e  # 🚨 Detiene si hay errores
       LATEST_VERSION=$(aws lambda publish-version --function-name "$LAMBDA_FUNCTION_NAME" --query 'Version' --output text)
       echo "Latest Lambda Version: $LATEST_VERSION"
-      aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --routing-config "AdditionalVersionWeights={\"$LATEST_VERSION\":0.2}"
+      
+      JSON_CONFIG=$(printf '{"AdditionalVersionWeights": {"%s": 0.2}}' "$LATEST_VERSION")
+
+      aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --routing-config "$JSON_CONFIG"
+
       echo "✅ 20% of traffic directed to new version"
   only:
     - main
+
 
 deploy_canary_ec2:
   stage: deploy_canary
@@ -88,7 +92,7 @@ deploy_canary_ec2:
     - echo "🚀 Launching Canary EC2 instance..."
     - |
       set -e  # 🚨 Evita que siga si hay errores
-      INSTANCE_ID=$(aws ec2 run-instances --image-id ami-0abcdef1234567890 --count 1 --instance-type t2.micro --key-name NewDanochKeyPair --security-groups my-security-group --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' --query 'Instances[0].InstanceId' --output text)
+      INSTANCE_ID=$(aws ec2 run-instances --image-id ami-032ae1bccc5be78ca --count 1 --instance-type t2.micro --key-name NewDanochKeyPair --security-groups my-security-group --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' --query 'Instances[0].InstanceId' --output text)
       echo "✅ Canary Instance Deployed! Instance ID: $INSTANCE_ID"
       echo "INSTANCE_ID=$INSTANCE_ID" >> deploy.env
   artifacts:
