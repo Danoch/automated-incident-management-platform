@@ -14,6 +14,7 @@ variables:
   NODE_APP_DIR: "/home/ec2-user/node-app"
   LAMBDA_FUNCTION_NAME: "incident-response-lambda"
   DEPLOY_PACKAGE: "lambda_function.zip"
+  PRODUCTION_LAMBDA_ALIAS: "production"
 
 image: python:3.9
 
