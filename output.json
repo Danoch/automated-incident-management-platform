@@ -1,1 +1,1 @@
-{"statusCode": 200, "body": "{\"message\": \"Lambda executed successfully.\"}"}
+{"statusCode": 200, "body": "{\"message\": \"\\ud83d\\udd34 High CPU usage detected! Restarted EC2 instance: i-0837de3f357c2a0c4\"}"}
