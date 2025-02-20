@@ -92,7 +92,7 @@ deploy_canary_ec2:
     - echo "🚀 Launching Canary EC2 instance..."
     - |
       set -e  # 🚨 Evita que siga si hay errores
-      INSTANCE_ID=$(aws ec2 run-instances --image-id ami-032ae1bccc5be78ca --count 1 --instance-type t2.micro --key-name NewDanochKeyPair --security-groups my-security-group --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' --query 'Instances[0].InstanceId' --output text)
+      INSTANCE_ID=$(aws ec2 run-instances --image-id ami-032ae1bccc5be78ca --count 1 --instance-type t2.micro --key-name NewDanochKeyPair --security-groups sg-0258f6f5d352c146a --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' --query 'Instances[0].InstanceId' --output text)
       echo "✅ Canary Instance Deployed! Instance ID: $INSTANCE_ID"
       echo "INSTANCE_ID=$INSTANCE_ID" >> deploy.env
   artifacts:
