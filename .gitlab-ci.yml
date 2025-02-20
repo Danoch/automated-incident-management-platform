@@ -2,8 +2,10 @@ stages:
   - test
   - package
   - deploy_staging
+  - deploy_canary  # 🐦 New stage for Canary Deployment
   - deploy_production
-  - deploy_node_app  # ✅ New stage for EC2 Node.js app deployment
+  - deploy_node_app # ✅ Stage for EC2 Node.js app deployment
+  - deploy_canary_ec2
 
 variables:
   AWS_REGION: "us-east-1"
@@ -64,54 +66,118 @@ deploy_staging:
   only:
     - main
 
+
+deploy_canary:
+  stage: deploy_canary
+  when: manual
+  script:
+    - echo "🚀 Deploying Canary Release..."
+    - |
+      set -e  # 🚨 Detiene la ejecución si hay errores
+      LATEST_VERSION=$(aws lambda publish-version --function-name "$LAMBDA_FUNCTION_NAME" --query 'Version' --output text)
+      echo "Latest Lambda Version: $LATEST_VERSION"
+      aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --routing-config "AdditionalVersionWeights={\"$LATEST_VERSION\":0.2}"
+      echo "✅ 20% of traffic directed to new version"
+  only:
+    - main
+
+deploy_canary_ec2:
+  stage: deploy_canary
+  when: manual
+  script:
+    - echo "🚀 Launching Canary EC2 instance..."
+    - |
+      set -e  # 🚨 Evita que siga si hay errores
+      INSTANCE_ID=$(aws ec2 run-instances --image-id ami-0abcdef1234567890 --count 1 --instance-type t2.micro --key-name NewDanochKeyPair --security-groups my-security-group --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' --query 'Instances[0].InstanceId' --output text)
+      echo "✅ Canary Instance Deployed! Instance ID: $INSTANCE_ID"
+      echo "INSTANCE_ID=$INSTANCE_ID" >> deploy.env
+  artifacts:
+    reports:
+      dotenv: deploy.env  # save instance ID
+  only:
+    - main
+
 deploy_production:
   stage: deploy_production
   when: manual
   script:
+    - echo "🚀 Deploying to Production..."
     - |
+      set -e  # 🚨 Detener si hay errores
+      LATEST_VERSION=$(aws lambda publish-version --function-name "$LAMBDA_FUNCTION_NAME" --query 'Version' --output text)
+      
+      echo "Latest Lambda Version: $LATEST_VERSION"
+      
       if aws lambda get-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" 2>/dev/null; then
-        aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "\$LATEST"
+        echo "Updating alias to new version..."
+        aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "$LATEST_VERSION"
       else
-        aws lambda create-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "\$LATEST"
+        echo "Creating alias for first deployment..."
+        aws lambda create-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "$LATEST_VERSION"
+      fi
+      
+      echo "✅ Production deployment complete!"
+
+  after_script:
+    - |
+      if [ $? -ne 0 ]; then
+        echo "❌ Deployment failed! Rolling back..."
+        PREVIOUS_VERSION=$(aws lambda list-versions-by-function --function-name "$LAMBDA_FUNCTION_NAME" --query 'Versions[-2].Version' --output text || echo "NO_VERSION")
+        if [ "$PREVIOUS_VERSION" != "NO_VERSION" ]; then
+          echo "Rolling back to previous version: $PREVIOUS_VERSION"
+          aws lambda update-alias --function-name "$LAMBDA_FUNCTION_NAME" --name "$PRODUCTION_LAMBDA_ALIAS" --function-version "$PREVIOUS_VERSION"
+        else
+          echo "⚠ No previous version found, cannot roll back!"
+        fi
       fi
   only:
     - main
 
 deploy_node_app:
   stage: deploy_node_app
-  image: docker:24.0  # ✅ Use Docker-in-Docker official image
+  image: docker:24.0
   services:
-    - docker:dind  # ✅ Enables Docker-in-Docker (DinD)
+    - docker:dind
   variables:
-    DOCKER_TLS_CERTDIR: ""  # ✅ Required to disable TLS issues in Docker-in-Docker
+    DOCKER_TLS_CERTDIR: ""
   before_script:
     - apk add --no-cache bash openssh-client aws-cli
-    - docker info  # ✅ Debugging to ensure Docker is running
+    - docker info
     - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
   script:
-    - echo "📂 Listing files before building the Docker image:"
-    - ls -la
-    - echo "📂 Checking inside node-app directory:"
-    - ls -la node-app/
-    - echo "🚀 Building Docker Image..."
-    - docker build -t node-app .  # ✅ No need to switch directories
+    - echo "🚀 Building and deploying new version..."
+    - docker build -t node-app .
     - docker tag node-app:latest "$AWS_ECR_REPO":latest
     - docker push "$AWS_ECR_REPO":latest
     - echo "✅ Image pushed to ECR!"
     
     - echo "🚀 Deploying on EC2..."
-    - apk add --no-cache openssh-client
-    - mkdir -p ~/.ssh
-    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-    - chmod 600 ~/.ssh/id_rsa
-    - ssh-keyscan "$EC2_HOST" >> ~/.ssh/known_hosts
     - ssh "$EC2_USER@$EC2_HOST" << 'EOF'
+        set -e
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$AWS_ECR_REPO"
         docker pull "$AWS_ECR_REPO":latest
         docker stop node-app-container || true
         docker rm node-app-container || true
         docker run -d -p 3000:3000 --name node-app-container "$AWS_ECR_REPO":latest
       EOF
+  after_script:
+    - |
+      if [ $? -ne 0 ]; then
+        echo "❌ Deployment failed! Rolling back..."
+        PREVIOUS_TAG=$(aws ecr list-images --repository-name node-app --query 'imageIds[-2].imageTag' --output text || echo "NO_IMAGE")
+        if [ "$PREVIOUS_TAG" != "NO_IMAGE" ]; then
+          ssh "$EC2_USER@$EC2_HOST" << 'EOF'
+            docker stop node-app-container || true
+            docker rm node-app-container || true
+            docker pull "$AWS_ECR_REPO:$PREVIOUS_TAG"
+            docker run -d -p 3000:3000 --name node-app-container "$AWS_ECR_REPO:$PREVIOUS_TAG"
+          EOF
+        else
+          echo "⚠ No previous image found, cannot roll back!"
+        fi
+      fi
   only:
     - main
+
+
 
