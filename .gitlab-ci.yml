@@ -244,7 +244,7 @@ deploy_lightweight_app:
         set -e
         export PATH=$PATH:/usr/local/bin
         cd $LIGHTWEIGHT_BACKEND_DIR
-        ls -la  # Check if files are correctly copied
+        ls -la
         npm install
         pm2 restart backend || pm2 start src/index.js --name backend
         pm2 save
@@ -258,7 +258,7 @@ deploy_lightweight_app:
         set -e
         export PATH=$PATH:/usr/local/bin
         cd $LIGHTWEIGHT_FRONTEND_DIR
-        ls -la  # Check if files are correctly copied
+        ls -la
         npm install
         npm run build
         pm2 restart frontend || pm2 start npm --name frontend -- run start
