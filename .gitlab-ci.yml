@@ -84,12 +84,23 @@ deploy_canary:
   only:
     - main
 
-
 deploy_canary_ec2:
   stage: deploy_canary
   when: manual
   script:
-    - echo "🚀 Launching Canary EC2 instance..."
+    - echo "🚀 Terminating old Canary Instances..."
+    - |
+      OLD_CANARY_INSTANCES=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=canary-instance" "Name=instance-state-name,Values=running" --query "Reservations[*].Instances[*].InstanceId" --output text)
+      
+      if [ -n "$OLD_CANARY_INSTANCES" ]; then
+        echo "Terminating instances: $OLD_CANARY_INSTANCES"
+        aws ec2 terminate-instances --instance-ids $OLD_CANARY_INSTANCES
+        echo "✅ Old Canary Instances Terminated!"
+      else
+        echo "No old Canary Instances found."
+      fi
+
+    - echo "🚀 Launching new Canary EC2 instance..."
     - |
       set -e  # 🚨 Detiene si hay errores
       INSTANCE_ID=$(aws ec2 run-instances --image-id ami-032ae1bccc5be78ca \
@@ -100,13 +111,14 @@ deploy_canary_ec2:
         --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=canary-instance}]' \
         --query 'Instances[0].InstanceId' --output text)
 
-      echo "✅ Canary Instance Deployed! Instance ID: $INSTANCE_ID"
+      echo "✅ New Canary Instance Deployed! Instance ID: $INSTANCE_ID"
       echo "INSTANCE_ID=$INSTANCE_ID" >> deploy.env
   artifacts:
     reports:
-      dotenv: deploy.env  # save the Instance ID
+      dotenv: deploy.env  # save the instanceID
   only:
     - main
+
 
 deploy_production:
   stage: deploy_production
