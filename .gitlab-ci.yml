@@ -237,8 +237,8 @@ deploy_lightweight_app:
     - chmod 600 ~/.ssh/id_rsa
 
     - echo "🚀 Deploying Lightweight Backend..."
-    - scp -r backend/* $EC2_USER@$EC2_HOST:$LIGHTWEIGHT_BACKEND_DIR
-    - ssh $EC2_USER@$EC2_HOST << 'EOF'
+    - scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r backend/* $EC2_USER@$EC2_HOST:$LIGHTWEIGHT_BACKEND_DIR
+    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST << 'EOF'
         cd $LIGHTWEIGHT_BACKEND_DIR
         npm install
         pm2 restart backend || pm2 start src/index.js --name backend
@@ -246,8 +246,8 @@ deploy_lightweight_app:
       EOF
 
     - echo "🚀 Deploying Lightweight Frontend..."
-    - scp -r frontend/* $EC2_USER@$EC2_HOST:$LIGHTWEIGHT_FRONTEND_DIR
-    - ssh $EC2_USER@$EC2_HOST << 'EOF'
+    - scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r frontend/* $EC2_USER@$EC2_HOST:$LIGHTWEIGHT_FRONTEND_DIR
+    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST << 'EOF'
         cd $LIGHTWEIGHT_FRONTEND_DIR
         npm install
         npm run build
@@ -256,7 +256,7 @@ deploy_lightweight_app:
       EOF
 
     - echo "🚀 Restarting Nginx..."
-    - ssh $EC2_USER@$EC2_HOST << 'EOF'
+    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST << 'EOF'
         sudo systemctl restart nginx
       EOF
   only:
