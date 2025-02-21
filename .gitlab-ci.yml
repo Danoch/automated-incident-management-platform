@@ -238,26 +238,30 @@ deploy_lightweight_app:
 
     - echo "🚀 Deploying Lightweight Backend..."
     - scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r src package.json package-lock.json .env database.sqlite $EC2_USER@$EC2_HOST:$LIGHTWEIGHT_BACKEND_DIR
-    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST << 'EOF'
-        cd $LIGHTWEIGHT_BACKEND_DIR
-        npm install
-        pm2 restart backend || pm2 start src/index.js --name backend
+
+    - echo "🚀 Installing dependencies & restarting backend..."
+    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST "
+        export PATH=\$PATH:/usr/local/bin && \
+        cd $LIGHTWEIGHT_BACKEND_DIR && \
+        npm install && \
+        pm2 restart backend || pm2 start src/index.js --name backend && \
         pm2 save
-      EOF
+      "
 
     - echo "🚀 Deploying Lightweight Frontend..."
     - scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r frontend/* $EC2_USER@$EC2_HOST:$LIGHTWEIGHT_FRONTEND_DIR
-    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST << 'EOF'
-        cd $LIGHTWEIGHT_FRONTEND_DIR
-        npm install
-        npm run build
-        pm2 restart frontend || pm2 start npm --name frontend -- run start
+
+    - echo "🚀 Installing dependencies & starting frontend..."
+    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST "
+        export PATH=\$PATH:/usr/local/bin && \
+        cd $LIGHTWEIGHT_FRONTEND_DIR && \
+        npm install && \
+        npm run build && \
+        pm2 restart frontend || pm2 start npm --name frontend -- run start && \
         pm2 save
-      EOF
+      "
 
     - echo "🚀 Restarting Nginx..."
-    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST << 'EOF'
-        sudo systemctl restart nginx
-      EOF
+    - ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $EC2_USER@$EC2_HOST "sudo systemctl restart nginx"
   only:
     - main
